@@ -21,3 +21,9 @@ $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_ti
 
 // Drop log table
 $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}ultrax_debug_log");
+
+// Remove mu-plugin
+$mu_file = ABSPATH . 'wp-content/mu-plugins/ultrax-debug-logging.php';
+if (file_exists($mu_file)) {
+    @unlink($mu_file);
+}

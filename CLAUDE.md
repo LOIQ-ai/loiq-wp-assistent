@@ -74,7 +74,8 @@ curl -H "X-Claude-Token: <token>" https://site.nl/wp-json/claude/v1/status
 | Token | Auto-generated, `password_hash()` opslag |
 | HTTPS | Verplicht (behalve localhost) |
 | Rate limit | 10/min, 100/uur per IP |
-| Auto-disable | Timer-based (default 24u) |
+| Auto-disable | Timer-based (default 24u) — endpoints + debug logging |
+| Managed logging | mu-plugin toggled WP_DEBUG_LOG via timer (geen wp-config editing) |
 | IP whitelist | Optioneel in admin |
 | Logging | Database met GDPR IP anonimisatie |
 | Read-only | Alleen GET endpoints, geen data wijzigen |
@@ -96,7 +97,8 @@ curl -H "X-Claude-Token: <token>" https://site.nl/wp-json/claude/v1/status
 | File | Doel |
 |------|------|
 | `ultrax-debug.php` | Alles-in-één plugin (geen modules) |
-| `uninstall.php` | Cleanup bij verwijderen |
+| `uninstall.php` | Cleanup bij verwijderen (incl. mu-plugin) |
+| `mu-plugins/ultrax-debug-logging.php` | Auto-generated, toggled WP_DEBUG_LOG via timer |
 
 ---
 
@@ -115,7 +117,7 @@ Deze plugin is bewust single-file:
 - [x] Token niet plain-text opgeslagen
 - [x] HTTPS verplicht in productie
 - [x] Rate limiting voorkomt brute force
-- [x] Auto-disable voorkomt vergeten endpoints
+- [x] Auto-disable voorkomt vergeten endpoints en debug logging
 - [x] IP anonimisatie voor GDPR
 - [x] Capability check op admin functies
 - [x] Nonce verificatie op AJAX calls
@@ -156,6 +158,13 @@ Deze plugin is bewust single-file:
 ---
 
 ## Learnings
+
+### v1.7.0
+- Managed Debug Logging: mu-plugin koppelt WP_DEBUG_LOG aan de timer
+- Timer verlopen = logging stopt automatisch, geen wp-config editing
+- mu-plugin wordt geinstalleerd bij activatie, verwijderd bij uninstall
+- Opt-out via `define('ULTRAX_DEBUG_UNMANAGED', true)` in wp-config.php
+- Gebruikt `ini_set()` — werkt ook als wp-config al WP_DEBUG definieert
 
 ### v1.5.0
 - Code context endpoint maakt Claude "slim" over de codebase
