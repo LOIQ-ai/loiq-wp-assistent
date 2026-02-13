@@ -1,6 +1,6 @@
 <?php
 /**
- * Ultrax Debug Uninstall
+ * LOIQ Debug Uninstall
  * 
  * Cleanup all plugin data when deleted (not deactivated).
  */

@@ -1,4 +1,4 @@
-# Claude Code Memory - Ultrax Debug
+# Claude Code Memory - LOIQ Debug
 
 ## Project Overview
 WordPress plugin voor beveiligde remote debugging via Claude CLI.
@@ -87,7 +87,7 @@ curl -H "X-Claude-Token: <token>" https://site.nl/wp-json/claude/v1/status
 
 ## Admin Functies
 
-**Tools > Ultrax Debug**
+**Tools > LOIQ Debug**
 - Token regenereren
 - Timer verlengen (1u/24u/1 week)
 - IP whitelist beheer
@@ -155,7 +155,7 @@ Deze plugin is bewust single-file:
 - Max 10 requests per minuut
 
 ### 503 Disabled
-- Open WP admin > Tools > Ultrax Debug
+- Open WP admin > Tools > LOIQ Debug
 - Klik "Activeer 24 uur"
 
 ---
