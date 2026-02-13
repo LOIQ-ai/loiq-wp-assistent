@@ -238,25 +238,118 @@ MUPHP;
     public function register_routes() {
         $namespace = 'claude/v1';
 
-        $endpoints = [
-            'status'       => 'get_status',
-            'errors'       => 'get_errors',
-            'plugins'      => 'get_plugins',
-            'theme'        => 'get_theme',
-            'database'     => 'get_database',
-            'code-context' => 'get_code_context',
-            'styles'       => 'get_styles',
-            'forms'        => 'get_forms_detail',
-            'page'         => 'get_page_context',
-        ];
+        // status - no args
+        register_rest_route($namespace, '/status', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_status'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [],
+        ]);
 
-        foreach ($endpoints as $route => $callback) {
-            register_rest_route($namespace, '/' . $route, [
-                'methods'             => 'GET',
-                'callback'            => [$this, $callback],
-                'permission_callback' => [$this, 'check_permission'],
-            ]);
-        }
+        // errors - optional lines param
+        register_rest_route($namespace, '/errors', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_errors'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [
+                'lines' => [
+                    'required'          => false,
+                    'type'              => 'integer',
+                    'default'           => 50,
+                    'minimum'           => 1,
+                    'maximum'           => 500,
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
+        ]);
+
+        // plugins - no args
+        register_rest_route($namespace, '/plugins', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_plugins'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [],
+        ]);
+
+        // theme - no args
+        register_rest_route($namespace, '/theme', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_theme'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [],
+        ]);
+
+        // database - no args
+        register_rest_route($namespace, '/database', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_database'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [],
+        ]);
+
+        // code-context - optional topic param
+        register_rest_route($namespace, '/code-context', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_code_context'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [
+                'topic' => [
+                    'required'          => false,
+                    'type'              => 'string',
+                    'default'           => 'general',
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => function($param) {
+                        $allowed = ['gravity-forms', 'woocommerce', 'divi', 'acf', 'custom-post-types', 'rest-api', 'cron', 'general'];
+                        return in_array($param, $allowed, true);
+                    },
+                ],
+            ],
+        ]);
+
+        // styles - no args
+        register_rest_route($namespace, '/styles', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_styles'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [],
+        ]);
+
+        // forms - optional id param
+        register_rest_route($namespace, '/forms', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_forms_detail'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [
+                'id' => [
+                    'required'          => false,
+                    'type'              => 'integer',
+                    'default'           => 0,
+                    'minimum'           => 0,
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
+        ]);
+
+        // page - optional url and id params
+        register_rest_route($namespace, '/page', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_page_context'],
+            'permission_callback' => [$this, 'check_permission'],
+            'args'                => [
+                'url' => [
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'id' => [
+                    'required'          => false,
+                    'type'              => 'integer',
+                    'default'           => 0,
+                    'minimum'           => 0,
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
+        ]);
     }
 
     /**
@@ -1377,7 +1470,7 @@ Token is tijdelijk actief. Alle endpoints zijn read-only.</pre>
             wp_send_json_error('Geen toegang');
         }
 
-        $hours = (int) ($_POST['hours'] ?? self::DEFAULT_HOURS);
+        $hours = absint(sanitize_text_field($_POST['hours'] ?? self::DEFAULT_HOURS));
         $hours = max(1, min(168, $hours)); // 1 hour to 1 week
 
         update_option('ultrax_debug_enabled_until', time() + ($hours * 3600));
