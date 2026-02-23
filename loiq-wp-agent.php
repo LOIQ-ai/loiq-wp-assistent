@@ -2,7 +2,7 @@
 /**
  * Plugin Name: LOIQ WordPress Agent
  * Description: Beveiligde REST API endpoints voor Claude CLI site debugging + write capabilities met safeguards.
- * Version: 2.0.1
+ * Version: 2.0.2
  * Update URI: https://github.com/LOIQ-ai/loiq-wp-assistent
  * Author: LOIQ
  * Author URI: https://loiq.nl
@@ -12,7 +12,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('LOIQ_AGENT_VERSION', '2.0.1');
+define('LOIQ_AGENT_VERSION', '2.0.2');
 define('LOIQ_AGENT_DB_VERSION', '2.0.0');
 define('LOIQ_AGENT_GITHUB_REPO', 'LOIQ-ai/loiq-wp-assistent');
 define('LOIQ_AGENT_PATH', plugin_dir_path(__FILE__));
@@ -474,19 +474,31 @@ MUPHP;
             return new WP_Error('auth_lockout', 'Te veel mislukte pogingen. Probeer over 15 minuten opnieuw.', ['status' => 403]);
         }
 
-        // 4. Token verification
+        // 4. Token verification (primary) OR WP Application Password (fallback)
         $token = $request->get_header('X-Claude-Token');
-        if (empty($token)) {
-            set_transient($lockout_key, $failed_attempts + 1, 900);
-            $this->log_request($request->get_route(), 401);
-            return new WP_Error('missing_token', 'X-Claude-Token header ontbreekt', ['status' => 401]);
+        $authenticated = false;
+
+        if (!empty($token)) {
+            // Primary auth: LOIQ token
+            $hash = get_option('loiq_agent_token_hash', '');
+            if (empty($hash) || !password_verify($token, $hash)) {
+                set_transient($lockout_key, $failed_attempts + 1, 900);
+                $this->log_request($request->get_route(), 401);
+                return new WP_Error('invalid_token', 'Ongeldig token', ['status' => 401]);
+            }
+            $authenticated = true;
+        } else {
+            // Fallback auth: WP Application Password (requires manage_options)
+            $user = wp_get_current_user();
+            if ($user->ID > 0 && user_can($user, 'manage_options')) {
+                $authenticated = true;
+            }
         }
 
-        $hash = get_option('loiq_agent_token_hash', '');
-        if (empty($hash) || !password_verify($token, $hash)) {
+        if (!$authenticated) {
             set_transient($lockout_key, $failed_attempts + 1, 900);
             $this->log_request($request->get_route(), 401);
-            return new WP_Error('invalid_token', 'Ongeldig token', ['status' => 401]);
+            return new WP_Error('missing_token', 'X-Claude-Token header of geldige WP authenticatie vereist', ['status' => 401]);
         }
 
         // Reset lockout on successful auth
