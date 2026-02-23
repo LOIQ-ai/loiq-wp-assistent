@@ -1997,6 +1997,11 @@ class LOIQ_WP_Agent_Updater {
         add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_update']);
         add_filter('plugins_api', [$this, 'plugin_info'], 10, 3);
         add_filter('upgrader_source_selection', [$this, 'fix_source_dir'], 10, 4);
+
+        // Add "Check for updates" link on plugins page
+        add_filter('plugin_action_links_' . $this->plugin_file, [$this, 'add_check_update_link']);
+        add_action('admin_init', [$this, 'handle_check_update']);
+        add_action('admin_notices', [$this, 'show_update_notice']);
     }
 
     /**
@@ -2075,6 +2080,60 @@ class LOIQ_WP_Agent_Updater {
         }
 
         return $source;
+    }
+
+    /**
+     * Show admin notice after update check
+     */
+    public function show_update_notice() {
+        $message = get_transient('loiq_update_notice');
+        if (!$message) return;
+        delete_transient('loiq_update_notice');
+        $type = strpos($message, 'up-to-date') !== false ? 'info' : 'warning';
+        echo '<div class="notice notice-' . $type . ' is-dismissible"><p><strong>' . esc_html($message) . '</strong></p></div>';
+    }
+
+    /**
+     * Add "Check for updates" action link on the plugins page
+     */
+    public function add_check_update_link($links) {
+        $check_url = wp_nonce_url(
+            admin_url('plugins.php?loiq_check_update=1'),
+            'loiq_check_update'
+        );
+        $links['check_update'] = '<a href="' . esc_url($check_url) . '">Check for updates</a>';
+        return $links;
+    }
+
+    /**
+     * Handle the "Check for updates" click — clear cache, force re-check
+     */
+    public function handle_check_update() {
+        if (empty($_GET['loiq_check_update']) || !current_user_can('update_plugins')) {
+            return;
+        }
+
+        check_admin_referer('loiq_check_update');
+
+        // Clear our cache
+        delete_transient($this->cache_key);
+
+        // Force WordPress to re-check plugin updates
+        delete_site_transient('update_plugins');
+        wp_update_plugins();
+
+        // Check if an update was found
+        $remote = $this->get_remote_version();
+        if ($remote && version_compare(LOIQ_AGENT_VERSION, $remote['version'], '<')) {
+            $message = 'LOIQ WP Agent update gevonden: v' . $remote['version'];
+        } else {
+            $message = 'LOIQ WP Agent is up-to-date (v' . LOIQ_AGENT_VERSION . ')';
+        }
+
+        // Redirect back with admin notice
+        set_transient('loiq_update_notice', $message, 30);
+        wp_safe_redirect(admin_url('plugins.php'));
+        exit;
     }
 
     /**
