@@ -1505,6 +1505,8 @@ Token is tijdelijk actief. Alle endpoints zijn read-only.</pre>
                     <tr><td><code>POST /claude/v3/theme-builder/create</code></td><td>divi_builder</td><td>Template aanmaken</td></tr>
                     <tr><td><code>POST /claude/v3/theme-builder/update</code></td><td>divi_builder</td><td>Template content updaten</td></tr>
                     <tr><td><code>POST /claude/v3/theme-builder/assign</code></td><td>divi_builder</td><td>Template condities toewijzen</td></tr>
+                    <tr><td><code>GET /claude/v3/child-theme/status</code></td><td>&mdash;</td><td>Child theme status + bestanden</td></tr>
+                    <tr><td><code>POST /claude/v3/child-theme/create</code></td><td>child_theme</td><td>Child theme scaffolden (style.css + functions.php)</td></tr>
                     <tr><td><code>POST /claude/v3/child-theme/functions/append</code></td><td>child_theme</td><td>Tagged block toevoegen aan functions.php</td></tr>
                     <tr><td><code>POST /claude/v3/child-theme/functions/remove</code></td><td>child_theme</td><td>Tagged block verwijderen</td></tr>
                     <tr><td><code>GET /claude/v3/child-theme/functions/list</code></td><td>&mdash;</td><td>Tagged blocks lijst</td></tr>

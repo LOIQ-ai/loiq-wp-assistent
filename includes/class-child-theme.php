@@ -35,6 +35,31 @@ class LOIQ_Agent_Child_Theme {
 
         // --- CHILD THEME ENDPOINTS ---
 
+        // --- CHILD THEME SCAFFOLD ---
+
+        register_rest_route($namespace, '/child-theme/status', [
+            'methods'             => 'GET',
+            'callback'            => [__CLASS__, 'handle_status'],
+            'permission_callback' => [$plugin, 'check_permission'],
+        ]);
+
+        register_rest_route($namespace, '/child-theme/create', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'handle_create'],
+            'permission_callback' => [$plugin, 'check_write_permission'],
+            'args'                => [
+                'name'          => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+                'author'        => ['required' => false, 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+                'author_uri'    => ['required' => false, 'type' => 'string', 'default' => '', 'sanitize_callback' => 'esc_url_raw'],
+                'description'   => ['required' => false, 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_text_field'],
+                'version'       => ['required' => false, 'type' => 'string', 'default' => '1.0.0', 'sanitize_callback' => 'sanitize_text_field'],
+                'activate'      => ['required' => false, 'type' => 'boolean', 'default' => false],
+                'dry_run'       => ['required' => false, 'type' => 'boolean', 'default' => false],
+            ],
+        ]);
+
+        // --- CHILD THEME FUNCTIONS ---
+
         register_rest_route($namespace, '/child-theme/functions/read', [
             'methods'             => 'GET',
             'callback'            => [__CLASS__, 'handle_functions_read'],
@@ -75,6 +100,263 @@ class LOIQ_Agent_Child_Theme {
 
     // =========================================================================
     // HANDLERS
+    // =========================================================================
+
+    // =========================================================================
+    // CHILD THEME SCAFFOLD
+    // =========================================================================
+
+    /**
+     * GET /claude/v3/child-theme/status
+     *
+     * Check current child theme status: exists, active, parent theme info.
+     */
+    public static function handle_status(WP_REST_Request $request) {
+        $parent_theme = wp_get_theme(get_template());
+        $active_theme = wp_get_theme();
+        $is_child     = $active_theme->parent() !== false;
+
+        // Check if a child theme directory exists for the parent
+        $child_slug    = $parent_theme->get_stylesheet() . '-child';
+        $child_dir     = get_theme_root() . '/' . $child_slug;
+        $child_exists  = is_dir($child_dir);
+
+        $result = [
+            'success'        => true,
+            'parent_theme'   => [
+                'name'       => $parent_theme->get('Name'),
+                'slug'       => $parent_theme->get_stylesheet(),
+                'version'    => $parent_theme->get('Version'),
+            ],
+            'active_theme'   => [
+                'name'       => $active_theme->get('Name'),
+                'slug'       => $active_theme->get_stylesheet(),
+                'version'    => $active_theme->get('Version'),
+                'is_child'   => $is_child,
+            ],
+            'child_theme_dir'    => $child_slug,
+            'child_theme_exists' => $child_exists,
+        ];
+
+        // If child theme exists, list its files
+        if ($child_exists) {
+            $files = [];
+            $iterator = new DirectoryIterator($child_dir);
+            foreach ($iterator as $file) {
+                if ($file->isDot() || $file->isDir()) continue;
+                $files[] = [
+                    'name' => $file->getFilename(),
+                    'size' => $file->getSize(),
+                ];
+            }
+            $result['child_theme_files'] = $files;
+        }
+
+        return $result;
+    }
+
+    /**
+     * POST /claude/v3/child-theme/create
+     *
+     * Scaffold a complete child theme with proper WP structure:
+     *   - style.css (with Theme header)
+     *   - functions.php (enqueue parent styles, ABSPATH guard)
+     *   - Optionally activate the child theme
+     *
+     * Will NOT overwrite an existing child theme directory.
+     */
+    public static function handle_create(WP_REST_Request $request) {
+        if (!LOIQ_Agent_Safeguards::is_enabled('child_theme')) {
+            return new WP_Error('power_mode_off', "Power mode voor 'child_theme' is uitgeschakeld. Enable via wp-admin.", ['status' => 403]);
+        }
+
+        $parent_theme = wp_get_theme(get_template());
+        $parent_slug  = $parent_theme->get_stylesheet();
+        $parent_name  = $parent_theme->get('Name');
+
+        $name        = $request->get_param('name') ?: $parent_name . ' Child';
+        $author      = $request->get_param('author') ?: $parent_theme->get('Author');
+        $author_uri  = $request->get_param('author_uri') ?: $parent_theme->get('AuthorURI');
+        $description = $request->get_param('description') ?: 'Child theme voor ' . $parent_name;
+        $version     = $request->get_param('version');
+        $activate    = (bool) $request->get_param('activate');
+        $dry_run     = (bool) $request->get_param('dry_run');
+        $session     = sanitize_text_field($request->get_header('X-Claude-Session') ?? '');
+
+        $child_slug = $parent_slug . '-child';
+        $child_dir  = get_theme_root() . '/' . $child_slug;
+
+        // Safety: never overwrite existing child theme
+        if (is_dir($child_dir)) {
+            return new WP_Error('child_exists',
+                "Child theme directory '{$child_slug}' bestaat al. Gebruik de bestaande child theme of verwijder deze eerst handmatig.",
+                ['status' => 409]
+            );
+        }
+
+        // Verify theme root is writable
+        if (!wp_is_writable(get_theme_root())) {
+            return new WP_Error('not_writable', 'Theme directory is niet schrijfbaar', ['status' => 500]);
+        }
+
+        // --- Build files ---
+
+        // style.css — proper WP theme header
+        $style_css = <<<CSS
+/*
+ Theme Name:   {$name}
+ Theme URI:    {$author_uri}
+ Description:  {$description}
+ Author:       {$author}
+ Author URI:   {$author_uri}
+ Template:     {$parent_slug}
+ Version:      {$version}
+ License:      GNU General Public License v2 or later
+ License URI:  https://www.gnu.org/licenses/gpl-2.0.html
+ Text Domain:  {$child_slug}
+*/
+
+/* Custom styles below this line */
+CSS;
+
+        // functions.php — proper parent style enqueue (WP best practice)
+        $functions_php = <<<'PHP'
+<?php
+/**
+ * CHILD_NAME — functions.php
+ *
+ * @package CHILD_SLUG
+ */
+
+if (!defined('ABSPATH')) exit;
+
+/**
+ * Enqueue parent and child theme styles.
+ *
+ * Uses wp_get_theme()->get('Version') for cache busting.
+ * Parent styles are loaded first, child styles override via dependency.
+ */
+function FUNC_PREFIX_enqueue_styles() {
+    $parent_handle = 'PARENT_SLUG-style';
+    $parent_theme  = wp_get_theme(get_template());
+    $child_theme   = wp_get_theme();
+
+    // Parent stylesheet
+    wp_enqueue_style(
+        $parent_handle,
+        get_template_directory_uri() . '/style.css',
+        [],
+        $parent_theme->get('Version')
+    );
+
+    // Child stylesheet (depends on parent for correct cascade order)
+    wp_enqueue_style(
+        'CHILD_SLUG-style',
+        get_stylesheet_uri(),
+        [$parent_handle],
+        $child_theme->get('Version')
+    );
+}
+add_action('wp_enqueue_scripts', 'FUNC_PREFIX_enqueue_styles');
+PHP;
+
+        // Replace placeholders
+        $func_prefix = str_replace('-', '_', $child_slug);
+        $functions_php = str_replace(
+            ['CHILD_NAME', 'CHILD_SLUG', 'PARENT_SLUG', 'FUNC_PREFIX'],
+            [$name, $child_slug, $parent_slug, $func_prefix],
+            $functions_php
+        );
+
+        // Create snapshot
+        $snapshot_id = LOIQ_Agent_Safeguards::create_snapshot(
+            'child_theme',
+            'create',
+            $child_slug,
+            null, // no before value — new directory
+            [
+                'child_slug' => $child_slug,
+                'parent'     => $parent_slug,
+                'files'      => ['style.css', 'functions.php'],
+            ],
+            $session
+        );
+
+        if ($dry_run) {
+            return [
+                'success'     => true,
+                'dry_run'     => true,
+                'snapshot_id' => $snapshot_id,
+                'child_slug'  => $child_slug,
+                'parent'      => $parent_slug,
+                'directory'   => $child_dir,
+                'files'       => [
+                    'style.css'     => $style_css,
+                    'functions.php' => $functions_php,
+                ],
+            ];
+        }
+
+        // Create directory
+        if (!wp_mkdir_p($child_dir)) {
+            return new WP_Error('mkdir_failed', "Kan directory '{$child_slug}' niet aanmaken", ['status' => 500]);
+        }
+
+        // Write files
+        $written = [];
+
+        $result = file_put_contents($child_dir . '/style.css', $style_css);
+        if ($result === false) {
+            // Cleanup on failure
+            @unlink($child_dir . '/style.css');
+            @rmdir($child_dir);
+            return new WP_Error('write_failed', 'Kan style.css niet schrijven', ['status' => 500]);
+        }
+        $written[] = 'style.css';
+
+        $result = file_put_contents($child_dir . '/functions.php', $functions_php);
+        if ($result === false) {
+            @unlink($child_dir . '/style.css');
+            @rmdir($child_dir);
+            return new WP_Error('write_failed', 'Kan functions.php niet schrijven', ['status' => 500]);
+        }
+        $written[] = 'functions.php';
+
+        // Mark snapshot as executed
+        LOIQ_Agent_Safeguards::mark_executed($snapshot_id, [
+            'child_dir' => $child_dir,
+            'files'     => $written,
+        ]);
+
+        LOIQ_Agent_Audit::log_write('child_theme', 'create', $child_slug, $session, $request);
+
+        $response = [
+            'success'     => true,
+            'snapshot_id' => $snapshot_id,
+            'child_slug'  => $child_slug,
+            'parent'      => $parent_slug,
+            'directory'   => $child_dir,
+            'files'       => $written,
+            'activated'   => false,
+        ];
+
+        // Activate if requested
+        if ($activate) {
+            $switch_result = switch_theme($child_slug);
+            // switch_theme returns void; verify by checking active theme
+            $now_active = wp_get_theme()->get_stylesheet();
+            $response['activated'] = ($now_active === $child_slug);
+
+            if (!$response['activated']) {
+                $response['activation_warning'] = 'Child theme aangemaakt maar activatie mislukt. Activeer handmatig via Weergave > Thema\'s.';
+            }
+        }
+
+        return $response;
+    }
+
+    // =========================================================================
+    // FUNCTIONS.PHP MANAGEMENT
     // =========================================================================
 
     /**
