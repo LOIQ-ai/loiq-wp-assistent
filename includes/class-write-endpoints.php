@@ -117,6 +117,15 @@ class LOIQ_Agent_Write_Endpoints {
             ],
         ]);
 
+        register_rest_route($namespace, '/snippet/remove', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'handle_snippet_remove'],
+            'permission_callback' => [$plugin, 'check_write_permission'],
+            'args'                => [
+                'name' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_file_name'],
+            ],
+        ]);
+
         // --- MANAGEMENT ENDPOINTS ---
 
         register_rest_route($namespace, '/rollback', [
@@ -484,8 +493,8 @@ class LOIQ_Agent_Write_Endpoints {
         $dry_run = (bool) $request->get_param('dry_run');
         $session = sanitize_text_field($request->get_header('X-Claude-Session') ?? '');
 
-        // Safety scan
-        $scan_result = LOIQ_Agent_Safeguards::scan_snippet($code);
+        // Safety scan (pass name to allow updates when at max capacity)
+        $scan_result = LOIQ_Agent_Safeguards::scan_snippet($code, $name);
         if (is_wp_error($scan_result)) return $scan_result;
 
         $safe_name = sanitize_file_name($name);
@@ -547,6 +556,30 @@ class LOIQ_Agent_Write_Endpoints {
             'safety_scan'  => 'passed',
             'rollback_url' => rest_url('claude/v2/rollback?snapshot_id=' . $snapshot_id),
         ];
+    }
+
+    /**
+     * POST /claude/v2/snippet/remove
+     */
+    public static function handle_snippet_remove(WP_REST_Request $request) {
+        if (!LOIQ_Agent_Safeguards::is_enabled('snippets')) {
+            return new WP_Error('power_mode_off', "Power mode voor 'snippets' is uitgeschakeld.", ['status' => 403]);
+        }
+
+        $name      = sanitize_file_name($request->get_param('name'));
+        $mu_file   = ABSPATH . 'wp-content/mu-plugins/loiq-snippet-' . $name . '.php';
+
+        if (!file_exists($mu_file)) {
+            return new WP_Error('snippet_not_found', 'Snippet "' . $name . '" niet gevonden', ['status' => 404]);
+        }
+
+        if (!@unlink($mu_file)) {
+            return new WP_Error('remove_failed', 'Kan snippet niet verwijderen', ['status' => 500]);
+        }
+
+        LOIQ_Agent_Audit::log_write('/claude/v2/snippet/remove', 200, 'snippet_remove', $name);
+
+        return ['success' => true, 'removed' => 'loiq-snippet-' . $name . '.php'];
     }
 
     // =========================================================================

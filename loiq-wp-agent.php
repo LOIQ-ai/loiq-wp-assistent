@@ -2,7 +2,7 @@
 /**
  * Plugin Name: LOIQ WordPress Agent
  * Description: Beveiligde REST API endpoints voor Claude CLI site debugging + write capabilities met safeguards.
- * Version: 3.0.1
+ * Version: 3.0.2
  * Update URI: https://github.com/LOIQ-ai/loiq-wp-assistent
  * Author: LOIQ
  * Author URI: https://loiq.nl
@@ -12,7 +12,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('LOIQ_AGENT_VERSION', '3.0.1');
+define('LOIQ_AGENT_VERSION', '3.0.2');
 define('LOIQ_AGENT_DB_VERSION', '2.0.0');
 define('LOIQ_AGENT_GITHUB_REPO', 'LOIQ-ai/loiq-wp-assistent');
 define('LOIQ_AGENT_PATH', plugin_dir_path(__FILE__));

@@ -456,8 +456,8 @@ PHP;
             return $syntax_check;
         }
 
-        // Scan for dangerous patterns (reuse snippet scanner approach)
-        $scan_result = LOIQ_Agent_Safeguards::scan_snippet($code);
+        // Scan for dangerous patterns (security-only, no snippet count check)
+        $scan_result = LOIQ_Agent_Safeguards::scan_code_security($code);
         if (is_wp_error($scan_result)) {
             return $scan_result;
         }

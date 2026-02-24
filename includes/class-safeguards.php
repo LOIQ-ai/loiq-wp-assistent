@@ -28,8 +28,8 @@ class LOIQ_Agent_Safeguards {
     ];
 
     /** Write rate limits */
-    const WRITE_RATE_LIMIT_MINUTE = 10;
-    const WRITE_RATE_LIMIT_HOUR   = 120;
+    const WRITE_RATE_LIMIT_MINUTE = 30;
+    const WRITE_RATE_LIMIT_HOUR   = 500;
 
     /** Snippet constraints */
     const SNIPPET_MAX_LINES   = 500;
@@ -471,9 +471,10 @@ class LOIQ_Agent_Safeguards {
      * Tokenizer catches obfuscation that regex misses (string concat, variable functions).
      *
      * @param string $code
+     * @param string|null $name Optional snippet name — if set and snippet already exists, skip count check (update).
      * @return true|WP_Error  true if safe, WP_Error with details if dangerous
      */
-    public static function scan_snippet($code) {
+    public static function scan_snippet($code, $name = null) {
         // Line count check
         $lines = substr_count($code, "\n") + 1;
         if ($lines > self::SNIPPET_MAX_LINES) {
@@ -483,13 +484,21 @@ class LOIQ_Agent_Safeguards {
             );
         }
 
-        // Active snippet count check
-        $active = self::count_active_snippets();
-        if ($active >= self::SNIPPET_MAX_ACTIVE) {
-            return new WP_Error('too_many_snippets',
-                'Maximum ' . self::SNIPPET_MAX_ACTIVE . ' actieve snippets bereikt (' . $active . ' actief)',
-                ['status' => 400]
-            );
+        // Active snippet count check (skip for updates to existing snippets)
+        $is_update = false;
+        if ($name) {
+            $safe_name = sanitize_file_name($name);
+            $mu_file   = ABSPATH . 'wp-content/mu-plugins/loiq-snippet-' . $safe_name . '.php';
+            $is_update = file_exists($mu_file);
+        }
+        if (!$is_update) {
+            $active = self::count_active_snippets();
+            if ($active >= self::SNIPPET_MAX_ACTIVE) {
+                return new WP_Error('too_many_snippets',
+                    'Maximum ' . self::SNIPPET_MAX_ACTIVE . ' actieve snippets bereikt (' . $active . ' actief)',
+                    ['status' => 400]
+                );
+            }
         }
 
         // Layer 1: Regex pattern scan (fast, catches obvious patterns)
@@ -706,6 +715,27 @@ class LOIQ_Agent_Safeguards {
             );
         }
 
+        return true;
+    }
+
+    /**
+     * Security-only code scan (dangerous patterns + tokenizer). No snippet count or syntax check.
+     * Used for child theme functions.php where snippet limits don't apply.
+     *
+     * @param string $code
+     * @return true|WP_Error
+     */
+    public static function scan_code_security($code) {
+        foreach (self::$dangerous_patterns as $pattern) {
+            if (preg_match($pattern, $code, $matches)) {
+                return new WP_Error('dangerous_code',
+                    'Geblokkeerde code patroon gevonden: ' . $matches[0],
+                    ['status' => 403]
+                );
+            }
+        }
+        $token_result = self::scan_snippet_tokens($code);
+        if (is_wp_error($token_result)) return $token_result;
         return true;
     }
 
