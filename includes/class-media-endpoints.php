@@ -208,6 +208,7 @@ class LOIQ_Agent_Media_Endpoints {
                 return new WP_Error('temp_failed', 'Kan tijdelijk bestand niet aanmaken', ['status' => 500]);
             }
 
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- temp file for base64 decode, used with wp_tempnam()
             file_put_contents($tmp_file, $decoded);
 
             // Validate actual MIME type

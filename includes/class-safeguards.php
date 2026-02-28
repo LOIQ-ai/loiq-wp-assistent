@@ -265,7 +265,12 @@ class LOIQ_Agent_Safeguards {
                     }
                 } else {
                     // Restore previous content
-                    file_put_contents($mu_file, $before_value);
+                    global $wp_filesystem;
+                    if (empty($wp_filesystem)) {
+                        require_once ABSPATH . '/wp-admin/includes/file.php';
+                        WP_Filesystem();
+                    }
+                    $wp_filesystem->put_contents($mu_file, $before_value, FS_CHMOD_FILE);
                 }
                 return true;
 
@@ -292,7 +297,12 @@ class LOIQ_Agent_Safeguards {
                 if (!is_writable($functions_file) && !is_writable(dirname($functions_file))) {
                     return new WP_Error('not_writable', 'functions.php is niet schrijfbaar', ['status' => 500]);
                 }
-                file_put_contents($functions_file, $before_value);
+                global $wp_filesystem;
+                if (empty($wp_filesystem)) {
+                    require_once ABSPATH . '/wp-admin/includes/file.php';
+                    WP_Filesystem();
+                }
+                $wp_filesystem->put_contents($functions_file, $before_value, FS_CHMOD_FILE);
                 return true;
 
             case 'menu':
@@ -365,7 +375,12 @@ class LOIQ_Agent_Safeguards {
                 if (!is_writable($css_file) && !is_writable(dirname($css_file))) {
                     return new WP_Error('not_writable', 'Child theme style.css is niet schrijfbaar', ['status' => 500]);
                 }
-                file_put_contents($css_file, $before_value);
+                global $wp_filesystem;
+                if (empty($wp_filesystem)) {
+                    require_once ABSPATH . '/wp-admin/includes/file.php';
+                    WP_Filesystem();
+                }
+                $wp_filesystem->put_contents($css_file, $before_value, FS_CHMOD_FILE);
                 return true;
 
             case 'divi_custom_css':
@@ -689,26 +704,25 @@ class LOIQ_Agent_Safeguards {
     }
 
     /**
-     * Check PHP syntax using php -l (lint).
+     * Check PHP syntax using token_get_all (pure PHP, no exec).
      *
      * @param string $code
      * @return true|WP_Error
      */
     private static function check_php_syntax($code) {
         $full = "<?php\nif (!defined('ABSPATH')) exit;\n" . $code;
-        $tmp = tempnam(sys_get_temp_dir(), 'loiq_snippet_');
-        if (!$tmp) return true; // Skip if temp file fails — don't block on infra issues
 
-        file_put_contents($tmp, $full);
-        $output = [];
-        $return_code = 0;
-        exec('php -l ' . escapeshellarg($tmp) . ' 2>&1', $output, $return_code);
-        @unlink($tmp);
-
-        if ($return_code !== 0) {
-            $error_msg = implode(' ', $output);
-            // Strip temp file path from error
-            $error_msg = str_replace($tmp, 'snippet.php', $error_msg);
+        try {
+            $tokens = @token_get_all($full, TOKEN_PARSE);
+            // token_get_all with TOKEN_PARSE throws ParseError on syntax errors
+            if ($tokens === false) {
+                return new WP_Error('syntax_error',
+                    'PHP syntax fout: code kan niet geparsed worden',
+                    ['status' => 400]
+                );
+            }
+        } catch (\ParseError $e) {
+            $error_msg = $e->getMessage();
             return new WP_Error('syntax_error',
                 'PHP syntax fout: ' . $error_msg,
                 ['status' => 400]

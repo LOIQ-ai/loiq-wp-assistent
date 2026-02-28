@@ -305,8 +305,14 @@ PHP;
         // Write files
         $written = [];
 
-        $result = file_put_contents($child_dir . '/style.css', $style_css);
-        if ($result === false) {
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) {
+            require_once ABSPATH . '/wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+
+        $result = $wp_filesystem->put_contents($child_dir . '/style.css', $style_css, FS_CHMOD_FILE);
+        if (!$result) {
             // Cleanup on failure
             @unlink($child_dir . '/style.css');
             @rmdir($child_dir);
@@ -314,8 +320,8 @@ PHP;
         }
         $written[] = 'style.css';
 
-        $result = file_put_contents($child_dir . '/functions.php', $functions_php);
-        if ($result === false) {
+        $result = $wp_filesystem->put_contents($child_dir . '/functions.php', $functions_php, FS_CHMOD_FILE);
+        if (!$result) {
             @unlink($child_dir . '/style.css');
             @rmdir($child_dir);
             return new WP_Error('write_failed', 'Kan functions.php niet schrijven', ['status' => 500]);
@@ -372,7 +378,12 @@ PHP;
             return $functions_file;
         }
 
-        $content = file_get_contents($functions_file);
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) {
+            require_once ABSPATH . '/wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+        $content = $wp_filesystem->get_contents($functions_file);
         if ($content === false) {
             return new WP_Error('read_failed', 'Kan functions.php niet lezen', ['status' => 500]);
         }
@@ -436,7 +447,12 @@ PHP;
         }
 
         // Read current content (before state)
-        $before = file_get_contents($functions_file);
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) {
+            require_once ABSPATH . '/wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+        $before = $wp_filesystem->get_contents($functions_file);
         if ($before === false) {
             return new WP_Error('read_failed', 'Kan functions.php niet lezen', ['status' => 500]);
         }
@@ -503,7 +519,7 @@ PHP;
         }
 
         // Write new content
-        if (file_put_contents($functions_file, $after) === false) {
+        if (!$wp_filesystem->put_contents($functions_file, $after, FS_CHMOD_FILE)) {
             return new WP_Error('write_failed', 'Kan niet schrijven naar functions.php', ['status' => 500]);
         }
 
@@ -543,7 +559,12 @@ PHP;
         }
 
         // Read current content
-        $before = file_get_contents($functions_file);
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) {
+            require_once ABSPATH . '/wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+        $before = $wp_filesystem->get_contents($functions_file);
         if ($before === false) {
             return new WP_Error('read_failed', 'Kan functions.php niet lezen', ['status' => 500]);
         }
@@ -584,7 +605,7 @@ PHP;
         }
 
         // Write new content
-        if (file_put_contents($functions_file, $after) === false) {
+        if (!$wp_filesystem->put_contents($functions_file, $after, FS_CHMOD_FILE)) {
             return new WP_Error('write_failed', 'Kan niet schrijven naar functions.php', ['status' => 500]);
         }
 
@@ -613,7 +634,12 @@ PHP;
             return $functions_file;
         }
 
-        $content = file_get_contents($functions_file);
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) {
+            require_once ABSPATH . '/wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+        $content = $wp_filesystem->get_contents($functions_file);
         if ($content === false) {
             return new WP_Error('read_failed', 'Kan functions.php niet lezen', ['status' => 500]);
         }
@@ -788,29 +814,25 @@ PHP;
     }
 
     /**
-     * Check PHP syntax by writing a temp file and running php -l.
+     * Check PHP syntax using token_get_all (pure PHP, no exec).
      *
      * @param string $code  The PHP code to check (without <?php tag)
      * @return true|WP_Error
      */
     private static function check_php_syntax($code) {
         $full = "<?php\nif (!defined('ABSPATH')) exit;\n" . $code;
-        $tmp = tempnam(sys_get_temp_dir(), 'loiq_ct_');
 
-        if (!$tmp) {
-            return true; // Skip if temp file fails -- don't block on infra issues
-        }
-
-        file_put_contents($tmp, $full);
-        $output = [];
-        $return_code = 0;
-        exec('php -l ' . escapeshellarg($tmp) . ' 2>&1', $output, $return_code);
-        @unlink($tmp);
-
-        if ($return_code !== 0) {
-            $error_msg = implode(' ', $output);
-            // Strip temp file path from error
-            $error_msg = str_replace($tmp, 'functions.php', $error_msg);
+        try {
+            $tokens = @token_get_all($full, TOKEN_PARSE);
+            // token_get_all with TOKEN_PARSE throws ParseError on syntax errors
+            if ($tokens === false) {
+                return new WP_Error('syntax_error',
+                    'PHP syntax fout: code kan niet geparsed worden',
+                    ['status' => 400]
+                );
+            }
+        } catch (\ParseError $e) {
+            $error_msg = $e->getMessage();
             return new WP_Error('syntax_error',
                 'PHP syntax fout: ' . $error_msg,
                 ['status' => 400]

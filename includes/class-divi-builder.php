@@ -588,7 +588,7 @@ class LOIQ_Agent_Divi_Builder {
         $files = glob($template_dir . '/*.json');
         $templates = [];
         foreach ($files as $file) {
-            $data = json_decode(file_get_contents($file), true);
+            $data = json_decode(file_get_contents($file), true); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local plugin template file
             if ($data) {
                 $templates[] = [
                     'name'        => basename($file, '.json'),
@@ -612,7 +612,7 @@ class LOIQ_Agent_Divi_Builder {
             return new WP_Error('template_not_found', "Template '{$name}' niet gevonden", ['status' => 404]);
         }
 
-        $data = json_decode(file_get_contents($file), true);
+        $data = json_decode(file_get_contents($file), true); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local plugin template file
         if (!$data) {
             return new WP_Error('invalid_template', 'Template JSON is ongeldig', ['status' => 500]);
         }

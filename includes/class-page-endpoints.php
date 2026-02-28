@@ -372,7 +372,7 @@ class LOIQ_Agent_Page_Endpoints {
             );
         }
 
-        $json = file_get_contents($template_file);
+        $json = file_get_contents($template_file); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local template file within plugin directory
         if ($json === false) {
             return new WP_Error('template_read_failed',
                 "Kan template '{$safe_name}' niet lezen",

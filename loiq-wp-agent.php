@@ -1,18 +1,20 @@
 <?php
 /**
  * Plugin Name: LOIQ WordPress Agent
+ * Plugin URI:  https://loiq.nl/wp-agent
  * Description: Beveiligde REST API endpoints voor Claude CLI site debugging + write capabilities met safeguards.
- * Version: 3.1.2
+ * Version: 3.1.3
  * Update URI: https://github.com/LOIQ-ai/loiq-wp-assistent
  * Author: LOIQ
  * Author URI: https://loiq.nl
  * License: GPL v2 or later
  * Requires PHP: 7.4
+ * Text Domain: loiq-wp-agent
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('LOIQ_AGENT_VERSION', '3.1.2');
+define('LOIQ_AGENT_VERSION', '3.1.3');
 define('LOIQ_AGENT_DB_VERSION', '2.0.0');
 define('LOIQ_AGENT_GITHUB_REPO', 'LOIQ-ai/loiq-wp-assistent');
 define('LOIQ_AGENT_PATH', plugin_dir_path(__FILE__));
@@ -161,6 +163,7 @@ MUPHP;
         // Inject version (nowdoc doesn't interpolate)
         $content = str_replace('%%VERSION%%', LOIQ_AGENT_VERSION, $content);
 
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- activation context, WP_Filesystem may not be available
         if (file_put_contents($mu_file, $content) === false) {
             return 'Kan mu-plugin niet schrijven naar ' . $mu_file;
         }
@@ -187,7 +190,7 @@ MUPHP;
 
         // Check if mu-plugin exists and contains current version
         if (file_exists($mu_file)) {
-            $content = file_get_contents($mu_file);
+            $content = file_get_contents($mu_file); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- internal version check
             if (strpos($content, LOIQ_AGENT_VERSION) !== false) {
                 return; // Up to date
             }

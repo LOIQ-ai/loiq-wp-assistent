@@ -502,7 +502,12 @@ class LOIQ_Agent_Write_Endpoints {
         $mu_file = $mu_dir . '/loiq-snippet-' . $safe_name . '.php';
 
         // Capture before state
-        $before = file_exists($mu_file) ? file_get_contents($mu_file) : null;
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) {
+            require_once ABSPATH . '/wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+        $before = file_exists($mu_file) ? $wp_filesystem->get_contents($mu_file) : null;
 
         // Build snippet file content
         $snippet_content = "<?php\n";
@@ -540,7 +545,7 @@ class LOIQ_Agent_Write_Endpoints {
         }
 
         // Write snippet
-        if (file_put_contents($mu_file, $snippet_content) === false) {
+        if (!$wp_filesystem->put_contents($mu_file, $snippet_content, FS_CHMOD_FILE)) {
             return new WP_Error('write_failed', 'Kan snippet niet schrijven naar ' . basename($mu_file), ['status' => 500]);
         }
 
@@ -673,7 +678,12 @@ class LOIQ_Agent_Write_Endpoints {
                 if (!file_exists($css_file)) {
                     return new WP_Error('no_child_theme', 'Child theme style.css niet gevonden', ['status' => 404]);
                 }
-                return file_get_contents($css_file);
+                global $wp_filesystem;
+                if (empty($wp_filesystem)) {
+                    require_once ABSPATH . '/wp-admin/includes/file.php';
+                    WP_Filesystem();
+                }
+                return $wp_filesystem->get_contents($css_file);
 
             case 'divi_custom_css':
                 $divi_options = get_option('et_divi', []);
@@ -701,7 +711,12 @@ class LOIQ_Agent_Write_Endpoints {
                 if (!is_writable($css_file) && !is_writable(dirname($css_file))) {
                     return new WP_Error('not_writable', 'Child theme style.css is niet schrijfbaar', ['status' => 500]);
                 }
-                if (file_put_contents($css_file, $css) === false) {
+                global $wp_filesystem;
+                if (empty($wp_filesystem)) {
+                    require_once ABSPATH . '/wp-admin/includes/file.php';
+                    WP_Filesystem();
+                }
+                if (!$wp_filesystem->put_contents($css_file, $css, FS_CHMOD_FILE)) {
                     return new WP_Error('write_failed', 'Kan niet schrijven naar style.css', ['status' => 500]);
                 }
                 return true;
