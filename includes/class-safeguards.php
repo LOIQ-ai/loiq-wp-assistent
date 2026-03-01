@@ -25,6 +25,7 @@ class LOIQ_Agent_Safeguards {
         'media'        => false,
         'forms'        => false,
         'facets'       => false,
+        'seo'          => false,
     ];
 
     /** Write rate limits */
@@ -353,6 +354,62 @@ class LOIQ_Agent_Safeguards {
                     if (count($parts) === 2) {
                         wp_delete_term((int) $parts[1], $parts[0]);
                     }
+                }
+                return true;
+
+            case 'seo_schema':
+                $post_id = (int) $target_key;
+                if ($before_value === null) {
+                    delete_post_meta($post_id, '_loiq_seo_schema');
+                } else {
+                    update_post_meta($post_id, '_loiq_seo_schema', $before_value);
+                }
+                return true;
+
+            case 'seo_meta':
+                $post_id = (int) $target_key;
+                if (is_array($before_value)) {
+                    $seo_plugin = 'native';
+                    if (defined('WPSEO_VERSION')) $seo_plugin = 'yoast';
+                    elseif (defined('RANK_MATH_VERSION')) $seo_plugin = 'rankmath';
+                    elseif (defined('LOIQ_SEO_VERSION')) $seo_plugin = 'loiq_seo';
+                    $meta_map = class_exists('LOIQ_Agent_SEO_Endpoints')
+                        ? LOIQ_Agent_SEO_Endpoints::get_meta_map_static($seo_plugin)
+                        : [];
+                    foreach ($before_value as $field => $val) {
+                        if ($field === 'robots') continue;
+                        if (isset($meta_map[$field])) {
+                            if ($val === '' || $val === null) {
+                                delete_post_meta($post_id, $meta_map[$field]);
+                            } else {
+                                update_post_meta($post_id, $meta_map[$field], $val);
+                            }
+                        }
+                    }
+                }
+                return true;
+
+            case 'seo_faq':
+                $post_id = (int) $target_key;
+                if (is_array($before_value)) {
+                    if (isset($before_value['post_content'])) {
+                        wp_update_post(['ID' => $post_id, 'post_content' => $before_value['post_content']]);
+                    }
+                    if (array_key_exists('schema', $before_value)) {
+                        if ($before_value['schema'] === null) {
+                            delete_post_meta($post_id, '_loiq_seo_schema');
+                        } else {
+                            update_post_meta($post_id, '_loiq_seo_schema', $before_value['schema']);
+                        }
+                    }
+                }
+                return true;
+
+            case 'seo_content':
+                // before_value = null (new post) — trash it
+                $post_id = (int) $target_key;
+                if ($before_value === null && $post_id > 0) {
+                    wp_trash_post($post_id);
                 }
                 return true;
 

@@ -3,7 +3,7 @@
  * Plugin Name: LOIQ WordPress Agent
  * Plugin URI:  https://loiq.nl/wp-agent
  * Description: Beveiligde REST API endpoints voor Claude CLI site debugging + write capabilities met safeguards.
- * Version: 3.1.4
+ * Version: 3.2.0
  * Update URI: https://github.com/LOIQ-ai/loiq-wp-assistent
  * Author: LOIQ
  * Author URI: https://loiq.nl
@@ -14,7 +14,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('LOIQ_AGENT_VERSION', '3.1.4');
+define('LOIQ_AGENT_VERSION', '3.2.0');
 define('LOIQ_AGENT_DB_VERSION', '2.0.0');
 define('LOIQ_AGENT_GITHUB_REPO', 'LOIQ-ai/loiq-wp-assistent');
 define('LOIQ_AGENT_PATH', plugin_dir_path(__FILE__));
@@ -37,6 +37,7 @@ require_once LOIQ_AGENT_PATH . 'includes/class-media-endpoints.php';
 require_once LOIQ_AGENT_PATH . 'includes/class-forms-endpoints.php';
 require_once LOIQ_AGENT_PATH . 'includes/class-facet-endpoints.php';
 require_once LOIQ_AGENT_PATH . 'includes/class-taxonomy-endpoints.php';
+require_once LOIQ_AGENT_PATH . 'includes/class-seo-endpoints.php';
 
 // Load Ed25519 signed updater (replaces GitHub-based updater)
 require_once LOIQ_AGENT_PATH . 'includes/class-updater.php';
@@ -263,6 +264,9 @@ MUPHP;
         // Register REST routes (v1 + v2 + v3) — token-based, no email restriction
         add_action('rest_api_init', [$this, 'register_routes']);
 
+        // SEO schema output in wp_head
+        add_action('wp_head', ['LOIQ_Agent_SEO_Endpoints', 'output_schema'], 1);
+
         // Admin menu (email-gated in callback)
         add_action('admin_menu', [$this, 'add_admin_menu']);
 
@@ -340,6 +344,7 @@ MUPHP;
         LOIQ_Agent_Forms_Endpoints::register_routes($this);
         LOIQ_Agent_Facet_Endpoints::register_routes($this);
         LOIQ_Agent_Taxonomy_Endpoints::register_routes($this);
+        LOIQ_Agent_SEO_Endpoints::register_routes($this);
     }
 
     /**
@@ -397,6 +402,7 @@ MUPHP;
         if (strpos($route, '/page/clone') !== false) return 'content';
         if (strpos($route, '/taxonomy/create-term') !== false) return 'content';
         if (strpos($route, '/taxonomy/assign') !== false) return 'content';
+        if (strpos($route, '/seo/') !== false) return 'seo';
 
         // Rollback: check the snapshot's action type
         if (strpos($route, '/rollback') !== false) return null; // Allow rollback regardless
@@ -914,6 +920,7 @@ Alle write endpoints hebben dry_run + snapshot/rollback. Rate limit: 10 writes/m
                 'media'        => ['Media Upload', 'Afbeeldingen uploaden naar media library (max 5MB)'],
                 'forms'        => ['Gravity Forms', 'Formulieren aanmaken, bewerken en verwijderen via GFAPI'],
                 'facets'       => ['FacetWP', 'Facets en templates aanmaken/bewerken'],
+                'seo'          => ['SEO Management', 'JSON-LD schema, meta titles/descriptions, FAQ secties, content drafts'],
             ];
             ?>
             <div class="loiq-card">
