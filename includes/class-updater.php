@@ -19,11 +19,11 @@ if (!defined('ABSPATH')) exit;
 
 class LOIQ_WP_Agent_Signed_Updater {
 
-    private $update_url = 'https://loiq-wp-agent.vercel.app/update.json';
+    private $update_url = 'https://loiq-wp-assistent.vercel.app/update.json';
 
     private $allowed_download_hosts = [
-        'loiq-wp-agent.vercel.app',
-        'loiq-wp-agent-*.vercel.app',
+        'loiq-wp-assistent.vercel.app',
+        'loiq-wp-assistent-*.vercel.app',
     ];
 
     private $signing_public_keys = [

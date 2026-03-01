@@ -28,7 +28,7 @@ except ImportError:
     sys.exit(1)
 
 # Configuration
-DOWNLOAD_BASE_URL = "https://loiq-wp-agent.vercel.app"
+DOWNLOAD_BASE_URL = "https://loiq-wp-assistent.vercel.app"
 KEY_ID = "key-2026-01"
 SIGNING_KEY_PATH = Path(__file__).parent / ".signing-key"
 
