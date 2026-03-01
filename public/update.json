@@ -1,0 +1,14 @@
+{
+  "name": "LOIQ WordPress Agent",
+  "version": "3.1.4",
+  "download_url": "https://loiq-wp-agent.vercel.app/loiq-wp-agent.zip",
+  "homepage": "https://loiq.nl",
+  "sha256": "2bbc702c0f3b1ef704a30e6c2a5badffa40cc14cc13b3cfea25e49f80235a453",
+  "released_at": "2026-03-01T08:14:38Z",
+  "key_id": "key-2026-01",
+  "signature": "4uzLIRbowFCNflu5g3LkxQqymIRHeC+Wki2DoV6ouGjyYHD7iigHNAtitDSVg88iKyOIY8ZwRV3M6+uk5cykBQ==",
+  "changelog": "### 3.1.4 - Security & Quality Hardening\n- SECURITY: exec() vervangen door token_get_all() voor PHP validatie\n- SECURITY: Ed25519 signed auto-updates via Vercel (vervangt unsigned GitHub releases)\n- QUALITY: PHP 7.4+ type declarations op alle functies\n- i18n: User-facing strings gewrapped in __()/_e()",
+  "requires": "5.8",
+  "requires_php": "7.4",
+  "tested": "6.7"
+}
