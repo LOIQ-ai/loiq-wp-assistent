@@ -1,13 +1,13 @@
 {
   "name": "LOIQ WordPress Agent",
-  "version": "3.1.4",
+  "version": "3.2.2",
   "download_url": "https://loiq-wp-assistent.vercel.app/loiq-wp-agent.zip",
   "homepage": "https://loiq.nl",
-  "sha256": "9965de57ea108cc84f845ad5211452225c958b9f26d3d6cda6083f57523a5579",
-  "released_at": "2026-03-01T09:16:33Z",
+  "sha256": "cbe1030c77bd15cb132006f500a216dbf4f0c4ad589527d22233e70e40c85259",
+  "released_at": "2026-03-02T15:51:12Z",
   "key_id": "key-2026-01",
-  "signature": "EdEBae0EsxElqSJ4DDEiqEH5OMrC2UKXY+mtVEUByv6FotCOKrZbOyLzGS1TT14eAiCXg4+CssXggyb40c43Aw==",
-  "changelog": "### 3.1.4 - Security & Quality Hardening\n- SECURITY: exec() vervangen door token_get_all() voor PHP validatie\n- SECURITY: Ed25519 signed auto-updates via Vercel (vervangt unsigned GitHub releases)\n- QUALITY: PHP 7.4+ type declarations op alle functies\n- i18n: User-facing strings gewrapped in __()/_e()",
+  "signature": "W3jxQE6D2p0ABMyW6xnuljiDzqnjmh/gObIjx5AnnLQuBVMLKZfwhHj5rFTM9EsNjXfm1pmt2FZgYsZUzU1wDQ==",
+  "changelog": "### 3.2.2 - AI Dev Prompt Overhaul\n- NEW: Comprehensive AI Developer Prompt with BUILD-BIBLE 7-phase workflow\n- NEW: Authorization: Bearer token support (SiteGround compatibility)\n- UX: Mindset, build order, safety rules, and best practices in prompt\n- FIX: Complete endpoint reference (v1/v2/v3 with all missing endpoints)",
   "requires": "5.8",
   "requires_php": "7.4",
   "tested": "6.7"

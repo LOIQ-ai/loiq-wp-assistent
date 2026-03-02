@@ -34,6 +34,13 @@ SIGNING_KEY_PATH = Path(__file__).parent / ".signing-key"
 
 # Changelog per version
 CHANGELOG = {
+    "3.2.2": """
+### 3.2.2 - AI Dev Prompt Overhaul
+- NEW: Comprehensive AI Developer Prompt with BUILD-BIBLE 7-phase workflow
+- NEW: Authorization: Bearer token support (SiteGround compatibility)
+- UX: Mindset, build order, safety rules, and best practices in prompt
+- FIX: Complete endpoint reference (v1/v2/v3 with all missing endpoints)
+""",
     "3.2.1": """
 ### 3.2.1 - SEO & FAQ Endpoints
 - NEW: v3 SEO endpoints (schema, meta, faq, content, status)
