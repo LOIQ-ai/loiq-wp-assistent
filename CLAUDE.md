@@ -17,21 +17,26 @@ WordPress plugin voor beveiligde remote debugging, write capabilities en volledi
 
 ### Claude CLI Gebruik
 ```bash
-# Read (v1)
+# Read (v1) — X-Claude-Token of Authorization: Bearer
 curl -H "X-Claude-Token: <token>" https://site.nl/wp-json/claude/v1/status
+curl -H "Authorization: Bearer <token>" https://site.nl/wp-json/claude/v1/status
 
 # Write (v2) — vereist Power Mode enabled
-curl -X POST -H "X-Claude-Token: <token>" \
+curl -X POST -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"css":".hero{color:red}","target":"child_theme","dry_run":true}' \
   https://site.nl/wp-json/claude/v2/css/deploy
 
 # Site Builder (v3) — vereist Power Mode enabled
-curl -X POST -H "X-Claude-Token: <token>" \
+curl -X POST -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"title":"Homepage","template":"homepage","status":"draft"}' \
   https://site.nl/wp-json/claude/v3/page/create
 ```
+
+> **v3.2.1+**: `Authorization: Bearer <token>` is nu de aanbevolen auth methode.
+> SiteGround (en andere managed hosting) stript custom headers bij requests met query parameters.
+> `X-Claude-Token` werkt nog steeds als fallback voor requests zonder query params.
 
 ---
 

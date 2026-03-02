@@ -34,6 +34,20 @@ SIGNING_KEY_PATH = Path(__file__).parent / ".signing-key"
 
 # Changelog per version
 CHANGELOG = {
+    "3.2.1": """
+### 3.2.1 - SEO & FAQ Endpoints
+- NEW: v3 SEO endpoints (schema, meta, faq, content, status)
+- NEW: FAQPage JSON-LD schema injection via /claude/v3/seo/faq
+- NEW: Meta title/description update via /claude/v3/seo/meta
+- NEW: SEO status dashboard via /claude/v3/seo/status
+- NEW: seo power mode (fail-closed, default uit)
+- FIX: Version constant mismatch header vs constant
+""",
+    "3.2.0": """
+### 3.2.0 - Unified FAQ Module
+- NEW: FAQ module met content-pipeline integratie
+- NEW: Taxonomy endpoints (list, create-term, assign)
+""",
     "3.1.4": """
 ### 3.1.4 - Security & Quality Hardening
 - SECURITY: exec() vervangen door token_get_all() voor PHP validatie

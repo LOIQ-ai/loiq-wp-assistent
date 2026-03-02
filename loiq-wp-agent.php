@@ -3,7 +3,7 @@
  * Plugin Name: LOIQ WordPress Agent
  * Plugin URI:  https://loiq.nl/wp-agent
  * Description: Beveiligde REST API endpoints voor Claude CLI site debugging + write capabilities met safeguards.
- * Version: 3.2.0
+ * Version: 3.2.2
  * Update URI: https://github.com/LOIQ-ai/loiq-wp-assistent
  * Author: LOIQ
  * Author URI: https://loiq.nl
@@ -14,7 +14,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('LOIQ_AGENT_VERSION', '3.2.0');
+define('LOIQ_AGENT_VERSION', '3.2.2');
 define('LOIQ_AGENT_DB_VERSION', '2.0.0');
 define('LOIQ_AGENT_GITHUB_REPO', 'LOIQ-ai/loiq-wp-assistent');
 define('LOIQ_AGENT_PATH', plugin_dir_path(__FILE__));
@@ -438,7 +438,15 @@ MUPHP;
         }
 
         // 4. Token verification (primary) OR WP Application Password (fallback)
+        // Try X-Claude-Token first, then Authorization: Bearer (SiteGround strips
+        // custom headers on requests with query parameters).
         $token = $request->get_header('X-Claude-Token');
+        if (empty($token)) {
+            $auth_header = $request->get_header('Authorization');
+            if (!empty($auth_header) && stripos($auth_header, 'Bearer ') === 0) {
+                $token = substr($auth_header, 7);
+            }
+        }
         $authenticated = false;
 
         if (!empty($token)) {
@@ -726,52 +734,153 @@ MUPHP;
                 <button type="button" class="button" onclick="copyTerminal()"><?php esc_html_e('Kopieer Terminal Prompt', 'loiq-wp-agent'); ?></button>
 
                 <h3 style="margin-top: 20px;"><?php esc_html_e('AI Dev Prompt (geef aan je developer)', 'loiq-wp-agent'); ?></h3>
-                <pre id="ai-dev-prompt" style="margin: 10px 0; padding: 15px; background: #1a1a2e; color: #e0e0ff; font-family: monospace; font-size: 12px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; cursor: pointer;" onclick="copyAiPrompt()">LOIQ WP Agent actief op deze site. SLA DIT OP IN JE AUTO-MEMORY (token + base URL) zodat het beschikbaar blijft na compaction.
+                <pre id="ai-dev-prompt" style="margin: 10px 0; padding: 15px; background: #1a1a2e; color: #e0e0ff; font-family: monospace; font-size: 12px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; cursor: pointer;" onclick="copyAiPrompt()">LOIQ WP Agent &mdash; AI Developer Prompt
+SLA DIT OP IN JE AUTO-MEMORY (token + base URL + workflow) zodat het beschikbaar blijft na compaction.
 
 Site: <?php echo esc_url(home_url()); ?>
 
 Base URL: <?php echo esc_url(rest_url('claude/')); ?>
 
-Header: X-Claude-Token: <?php echo esc_attr($new_token); ?>
+Auth: Authorization: Bearer <?php echo esc_attr($new_token); ?>
 
-=== v1 Read Endpoints (geen power mode nodig) ===
-- /v1/status         — WP/PHP versie, memory, debug mode
-- /v1/errors         — Debug.log (?lines=50)
-- /v1/plugins        — Alle plugins met status
-- /v1/theme          — Actief thema + parent
-- /v1/database       — Tabellen en sizes
-- /v1/code-context   — Code context (?topic=divi|gravity-forms|woocommerce|acf|custom-post-types)
-- /v1/styles         — CSS stylesheets
-- /v1/forms          — Gravity Forms (?id=3 voor detail)
-- /v1/page           — Pagina context (?url=/over-ons of ?id=42)
+(Fallback header: X-Claude-Token &mdash; gebruik Bearer als primary)
 
-=== v2 Write Endpoints (power modes vereist) ===
-- /v2/css/deploy     — CSS naar child theme/Divi/customizer
-- /v2/content/update — Post/page content + meta updaten
-- /v2/option/update  — Whitelisted WP options
-- /v2/plugin/toggle  — Plugins activeren/deactiveren
-- /v2/snippet/deploy — PHP snippet als mu-plugin
-- /v2/snapshots      — Bekijk snapshots
-- /v2/rollback       — Herstel snapshot
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+MINDSET: &euro;100K+ AGENCY STANDAARD
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+Denk altijd: &ldquo;Hoe zou een agency die sites bouwt vanaf &euro;100.000 dit doen?&rdquo;
+&bull; Elk detail telt. Geen shortcuts, geen &ldquo;goed genoeg&rdquo;.
+&bull; Alles bewerkbaar door de klant in Divi Visual Builder. Geen fragiele hacks.
+&bull; Design system denken: Global Colors, Global Fonts, Presets &mdash; 1 plek wijzigen = hele site update.
+&bull; Research first: WebSearch branche + trends + concurrentie VOOR je bouwt.
+&bull; Dry-run first: ALTIJD dry_run=true bij eerste write. Check response. Dan pas uitvoeren.
 
-=== v3 Site Builder (power modes vereist) ===
-Divi Builder:     /v3/divi/build, /v3/divi/parse, /v3/divi/validate, /v3/divi/modules
-Theme Builder:    /v3/theme-builder/list, /v3/theme-builder/create, /v3/theme-builder/update, /v3/theme-builder/assign
-Pages:            /v3/page/create, /v3/page/clone, /v3/page/list
-Menus:            /v3/menu/create, /v3/menu/items/add, /v3/menu/assign, /v3/menu/mega-menu/configure
-Media:            /v3/media/upload, /v3/media/search
-Forms:            /v3/forms/create, /v3/forms/update, /v3/forms/embed
-Child Theme:      /v3/child-theme/functions/append, /v3/child-theme/functions/remove
-FacetWP:          /v3/facet/create, /v3/facet/template
-Taxonomie:        /v3/taxonomy/list, /v3/taxonomy/create-term, /v3/taxonomy/assign
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+DE GOUDEN BUILD VOLGORDE (7 FASEN &mdash; HEILIG)
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+Bouw ALTIJD in deze volgorde. Overslaan = problemen later.
 
-=== Workflow ===
-1. Pagina's aanmaken (templates beschikbaar)  2. Media uploaden
-3. Content vullen via Divi Builder  4. Menu's + Mega Menu
-5. Theme Builder (global header/footer + blog templates)
-6. CSS fine-tuning via child theme
+FASE 1: FUNDAMENT
+  GET /v1/status (inventariseer wat er is)
+  GET /v1/plugins + /v1/theme
+  Global Colors + Fonts instellen (Divi Theme Customizer)
+  Logo uploaden: POST /v3/media/upload
+  Site Identity (titel, tagline, favicon)
 
-Alle write endpoints hebben dry_run + snapshot/rollback. Rate limit: 10 writes/min.</pre>
+FASE 2: NAVIGATIE
+  Placeholder pagina's: POST /v3/page/create (&times;N, status=draft)
+    Templates: homepage, diensten, contact, over-ons, blog-single, landing-page
+  Menu aanmaken: POST /v3/menu/create
+  Menu items: POST /v3/menu/items/add (pages, hi&euml;rarchie)
+  Menu toewijzen: POST /v3/menu/assign (primary-menu)
+  Mega Menu: POST /v3/menu/mega-menu/configure (optioneel)
+
+FASE 3: THEME BUILDER (header/footer VOOR pagina content!)
+  GET /v3/theme-builder/list (pak default_template.id)
+  Global Header: POST /v3/theme-builder/update (header_content)
+    Structuur: Top bar (optioneel) + Main header (logo + menu)
+  Global Footer: POST /v3/theme-builder/update (footer_content)
+    Structuur: 3-4 kolommen + copyright bar
+  Blog Post template: POST /v3/theme-builder/create (use_on: all:post)
+  Blog Archive template: POST /v3/theme-builder/create
+  ALTIJD dry_run=true eerst bij Theme Builder!
+
+FASE 4: PAGINA'S BOUWEN
+  Divi JSON &rarr; shortcode: POST /v3/divi/build
+  Content vullen: POST /v2/content/update
+  Media uploaden: POST /v3/media/upload (max 5MB, image/*)
+  Standaard: Home, Over Ons, Diensten, Contact, Blog, Privacy
+  Admin labels op ELKE section (Hero, Features, CTA, etc.)
+  Responsive check: desktop &rarr; tablet (768) &rarr; mobile (480)
+
+FASE 5: FORMULIEREN &amp; FUNCTIONALITEIT
+  Gravity Form: POST /v3/forms/create (fields, notifications, confirmations)
+  Embed: GET /v3/forms/embed?form_id=1 &rarr; shortcode in pagina content
+  FacetWP: POST /v3/facet/create + /v3/facet/template (optioneel)
+  Taxonomie: POST /v3/taxonomy/create-term + /v3/taxonomy/assign
+  Custom PHP: POST /v3/child-theme/functions/append (tagged blocks)
+
+FASE 6: SEO &amp; OPTIMALISATIE
+  Meta titles + descriptions per pagina
+  Alt tekst op ELKE afbeelding
+  Heading hi&euml;rarchie: 1&times; H1 per pagina, sequentieel (geen h2&rarr;h4 skip)
+  Performance: Divi Dynamic CSS + Critical CSS AAN
+  Divi Performance opties activeren (Theme Options &rarr; Performance)
+
+FASE 7: HANDOFF &amp; HARDENING
+  Divi Role Editor: client = Editor role (geen Theme Options, geen Portability)
+  CSS fine-tuning: POST /v2/css/deploy (target: child_theme)
+  Testrun alle pagina's (desktop + mobile)
+  Snapshots: GET /v2/snapshots (verify rollback possible)
+  WP Agent timer uitzetten na oplevering
+
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+ENDPOINT REFERENTIE (COMPACT)
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+
+&mdash; v1 Read (geen power mode) &mdash;
+/v1/status          WP/PHP versie, memory, debug
+/v1/errors          Debug.log (?lines=50)
+/v1/plugins         Alle plugins + update status
+/v1/theme           Actief thema + parent
+/v1/database        Tabellen en sizes (geen data)
+/v1/code-context    Code context (?topic=divi|gravity-forms|woocommerce|acf|custom-post-types)
+/v1/styles          CSS stylesheets
+/v1/forms           Gravity Forms (?id=3 voor detail)
+/v1/page            Pagina context (?url=/pad of ?id=42)
+
+&mdash; v2 Write (power mode vereist) &mdash;
+/v2/css/deploy      CSS &rarr; child_theme|divi_custom_css|customizer (mode: append|replace)
+/v2/content/update  Post/page content + meta + status
+/v2/option/update   Whitelisted WP options
+/v2/plugin/toggle   Plugin activeren/deactiveren
+/v2/snippet/deploy  PHP snippet als mu-plugin (max 500 regels)
+/v2/snapshots       Bekijk snapshots
+/v2/rollback        Herstel snapshot
+/v2/power-modes     Huidige power mode status
+
+&mdash; v3 Site Builder (power mode vereist) &mdash;
+Divi:        /v3/divi/build, /parse, /validate, /modules, /templates, /template/{name}
+Theme:       /v3/theme-builder/list, /read, /create, /update, /assign
+             /v3/divi/library/list, /library/save
+Pages:       /v3/page/create, /clone, /list
+Menus:       /v3/menu/list, /create, /items/add, /items/reorder, /assign
+             /v3/menu/mega-menu/read, /mega-menu/configure
+Media:       /v3/media/upload, /search
+Forms:       /v3/forms/create, /update, /delete, /embed
+FacetWP:     /v3/facet/list, /create, /update, /template
+Taxonomie:   /v3/taxonomy/list, /create-term, /assign
+Child Theme: /v3/child-theme/functions/read, /append, /remove, /list
+
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+VEILIGHEIDSREGELS
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+&bull; ALTIJD dry_run=true bij eerste write poging
+&bull; Snapshots worden automatisch gemaakt &mdash; rollback bij fouten
+&bull; Rate limit: 10 writes/min, 120 writes/uur
+&bull; Snippet scanner blokkeert eval/exec/system/shell_exec
+&bull; Child theme: PHP syntax check voor elke append
+&bull; Media: max 5MB, alleen image/* MIME types
+&bull; NOOIT mu-plugin snippets op muplugins_loaded hook (crasht WP VOOR REST API)
+&bull; CSS deploy mode=replace vervangt HELE bestand &mdash; altijd eerst lezen!
+
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+ZO HOORT HET
+&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
+&bull; Logo via Media Library &rarr; Image Module (klant kan vervangen in Visual Builder)
+&bull; Contact info centraal: shortcodes of 1 plek, nooit verspreid
+&bull; Social icons via Divi Social Media Follow Module
+&bull; Gravity Forms via [gravityform id=&quot;1&quot; ajax=&quot;true&quot; title=&quot;false&quot;] in Code Module
+&bull; CSS volgorde: Divi Settings &rarr; Presets &rarr; Module CSS &rarr; Child theme &rarr; Custom CSS
+&bull; Blog/Archive via Theme Builder templates, NIET statische pagina's
+&bull; Header: Top bar (optioneel) + Main header (logo links, menu rechts)
+&bull; Footer: 3-4 kolommen + copyright bar met dynamisch jaar
+&bull; Icons via FontAwesome Pro of SVG &mdash; consistent style (outlined OF filled)
+&bull; Alt tekst op ELKE afbeelding. Hero max 200KB, content max 150KB.
+&bull; Admin labels op sections voor navigatie in Divi Builder Layer View
+
+Templates: homepage, diensten, contact, over-ons, blog-single, landing-page
+Page layouts: et_full_width_page (standaard), et_no_sidebar (privacy/plain)</pre>
                 <button type="button" class="button button-primary" onclick="copyAiPrompt()"><?php esc_html_e('Kopieer AI Dev Prompt', 'loiq-wp-agent'); ?></button>
             </div>
             <?php delete_transient('loiq_agent_new_token'); ?>
